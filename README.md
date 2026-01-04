@@ -1,100 +1,92 @@
-
-
-██╗ ███████╗██╗ ██╗
-██║ ██╔════╝╚██╗██╔╝
-██║ █████╗ ╚███╔╝
-██║ ██╔══╝ ██╔██╗
+██╗     ███████╗██╗  ██╗
+██║     ██╔════╝╚██╗██╔╝
+██║     █████╗   ╚███╔╝
+██║     ██╔══╝   ██╔██╗
 ███████╗███████╗██╔╝ ██╗
-╚══════╝╚══════╝╚═╝ ╚═╝
+╚══════╝╚══════╝╚═╝  ╚═╝
 
-    LΞX Recon Tool
+        LΞX Recon
+   Made by Omar Abdelsalam
 
-Made by Omar Abdelsalam
+# LΞX Recon
 
+LΞX Recon is a **professional reconnaissance automation framework** designed for **real bug bounty hunters and penetration testers**.
 
-# LΞX Recon Tool
-
-LΞX is a **professional reconnaissance automation tool** built for **bug bounty hunters** and **penetration testers**.  
-It automates high-quality **passive reconnaissance** using industry-standard tools and methodologies.
-
-The tool is available in **both GUI and CLI versions**, allowing flexibility for different workflows.
+It focuses on **high-signal attack surface discovery**, not noisy scanning.
 
 ---
 
 ## ✨ Features
 
-- 🔍 Subdomain enumeration using **subfinder + amass**
-- 🌐 Live host detection via **httpx**
-- 🧼 Clean, deduplicated output
-- 📁 Domain-based result structure
-- 🖥️ GUI mode for ease of use
-- 🧑‍💻 CLI mode for automation & scripting
-- ⚡ Passive-first, low-noise recon
-- 🧠 Designed using real bug bounty best practices
+- Subdomain enumeration (subfinder + amass)
+- Live host detection (httpx)
+- URL collection (gau + wayback)
+- JavaScript endpoint extraction
+- Parameter discovery
+- **API recon (REST, GraphQL, Swagger)**
+- Tech stack fingerprinting
+- Modern dark GUI + powerful CLI
 
 ---
 
-## 🖥️ Modes
+## ⚡ Recon Modes
 
-### GUI Mode
-- Button-based interface
-- Ideal for beginners and visual workflows
+### FAST
+- Subdomains
+- Live hosts
+- URLs
 
-Run:
+Best for quick triage.
+
+### DEEP
+- FAST recon +
+- JS files & endpoints
+- Parameters
+- API endpoints
+- Tech stack
+
+Best for full bug-hunting.
+
+---
+
+## 🖥 Usage
+
+### GUI
 ```bash
-python3 lex_gui.py
+python3 lex_recon_gui.py
+---
 
-CLI Mode
+###Cli 
+python3 lex_recon_cli.py -d example.com --deep
 
-    Fast and scriptable
 
-    Feels like professional tools (subfinder, amass, etc.)
+🔧 Dependencies
 
-Run:
+LΞX Recon auto-downloads:
 
-chmod +x lex.py
-./lex.py -d example.com --subdomains
+LinkFinder
 
-📁 Output Structure
+ParamSpider
 
-results/
- └── example.com/
-     └── live_subdomains.txt
+External tools required:
 
-🛠 Requirements
+subfinder
 
-    Python 3.8+
+amass
 
-    subfinder
+httpx
 
-    amass
+gau
 
-    httpx
+waybackurls
 
-Install tools before running LΞX.
+whatweb
+
+⚠️ Disclaimer
+
+For authorized security testing only.
+Do not use against systems you do not own or have permission to test.
+
 👤 Author
 
 Omar Abdelsalam
-⚠️ Disclaimer
-
-This tool is intended only for authorized security testing.
-Do not use it against systems you do not own or have explicit permission to test.
-🚀 Roadmap (Planned)
-
-    --all recon flag
-
-    URL & JS file discovery
-
-    Parameter enumeration
-
-    Colored CLI output
-
-    Dark GUI theme
-
-    Windows .exe release
-
-    Docker support
-
-⭐ If you find LΞX useful, consider starring the repo.
-
-

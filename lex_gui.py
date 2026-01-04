@@ -1,151 +1,102 @@
 #!/usr/bin/env python3
-import os
-import subprocess
+import os, subprocess
 import customtkinter as ctk
 
-# ================== CONFIG ==================
-APP_NAME = "LΞX Recon v2"
+# ---------------- CONFIG ----------------
+APP_NAME = "LΞX Recon v2.5"
 AUTHOR = "Made by Omar Abdelsalam"
+RESULTS = "results"
+TOOLS = "tools"
 
-RESULTS_DIR = "results"
-TOOLS_DIR = "tools"
+LINKFINDER = "https://github.com/GerbenJavado/LinkFinder"
+PARAMSPIDER = "https://github.com/devanshbatham/ParamSpider"
 
-LINKFINDER_REPO = "https://github.com/GerbenJavado/LinkFinder"
-PARAMSPIDER_REPO = "https://github.com/devanshbatham/ParamSpider"
-
-# ================== UI SETUP ==================
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
 
-# ================== HELPERS ==================
-def run_cmd(cmd):
-    subprocess.call(cmd, shell=True)
-
-def log(msg):
-    output_box.insert("end", msg + "\n")
-    output_box.see("end")
-    app.update()
+# ---------------- HELPERS ----------------
+def cmd(c): subprocess.call(c, shell=True)
+def log(m): output.insert("end", m+"\n"); output.see("end"); app.update()
 
 def ensure_tools():
-    os.makedirs(TOOLS_DIR, exist_ok=True)
+    os.makedirs(TOOLS, exist_ok=True)
+    if not os.path.exists(f"{TOOLS}/LinkFinder"):
+        log("[+] Downloading LinkFinder")
+        cmd(f"git clone {LINKFINDER} {TOOLS}/LinkFinder")
+    if not os.path.exists(f"{TOOLS}/ParamSpider"):
+        log("[+] Downloading ParamSpider")
+        cmd(f"git clone {PARAMSPIDER} {TOOLS}/ParamSpider")
 
-    if not os.path.exists(f"{TOOLS_DIR}/LinkFinder"):
-        log("[+] Downloading LinkFinder...")
-        run_cmd(f"git clone {LINKFINDER_REPO} {TOOLS_DIR}/LinkFinder")
+def tdir(d):
+    p=f"{RESULTS}/{d}"
+    os.makedirs(p, exist_ok=True)
+    return p
 
-    if not os.path.exists(f"{TOOLS_DIR}/ParamSpider"):
-        log("[+] Downloading ParamSpider...")
-        run_cmd(f"git clone {PARAMSPIDER_REPO} {TOOLS_DIR}/ParamSpider")
-
-def ensure_target_dir(domain):
-    path = f"{RESULTS_DIR}/{domain}"
-    os.makedirs(path, exist_ok=True)
-    return path
-
-# ================== RECON LOGIC ==================
-def run_full_recon():
-    domain = domain_entry.get().strip()
-
+# ---------------- RECON ----------------
+def run_recon(mode):
+    domain = entry.get().strip()
     if not domain:
-        log("[!] Please enter a domain")
-        return
+        log("[!] Enter a domain"); return
 
     ensure_tools()
-    target_dir = ensure_target_dir(domain)
+    p = tdir(domain)
 
-    log(f"[+] Starting FULL recon for {domain}")
-    log("=" * 50)
+    log(f"[+] Recon mode: {mode.upper()} | Target: {domain}")
 
-    # Subdomains
-    log("[1/7] Finding subdomains (subfinder + amass)")
-    run_cmd(
-        f"subfinder -d {domain} -silent | "
-        f"amass enum -passive -d {domain} > {target_dir}/subdomains.txt"
-    )
+    log("[1] Subdomains")
+    cmd(f"subfinder -d {domain} -silent | amass enum -passive -d {domain} > {p}/subs.txt")
 
-    # Live hosts
-    log("[2/7] Checking live hosts (httpx)")
-    run_cmd(
-        f"cat {target_dir}/subdomains.txt | "
-        f"httpx -silent > {target_dir}/live_hosts.txt"
-    )
+    log("[2] Live hosts")
+    cmd(f"cat {p}/subs.txt | httpx -silent > {p}/live.txt")
 
-    # URLs
-    log("[3/7] Collecting URLs (gau + wayback)")
-    run_cmd(
-        f"cat {target_dir}/live_hosts.txt | gau > {target_dir}/urls.txt"
-    )
-    run_cmd(
-        f"cat {target_dir}/live_hosts.txt | waybackurls >> {target_dir}/urls.txt"
-    )
-    run_cmd(
-        f"sort -u {target_dir}/urls.txt -o {target_dir}/urls.txt"
-    )
+    log("[3] URLs")
+    cmd(f"cat {p}/live.txt | gau > {p}/urls.txt")
+    cmd(f"cat {p}/live.txt | waybackurls >> {p}/urls.txt")
+    cmd(f"sort -u {p}/urls.txt -o {p}/urls.txt")
 
-    # JS files
-    log("[4/7] Extracting JavaScript files")
-    run_cmd(
-        f"grep '\\.js' {target_dir}/urls.txt | sort -u > {target_dir}/js_files.txt"
-    )
+    if mode == "fast":
+        log("[✓] FAST recon completed"); return
 
-    # JS endpoints
-    log("[5/7] Extracting JS endpoints (LinkFinder)")
-    run_cmd(
-        f"python3 {TOOLS_DIR}/LinkFinder/linkfinder.py "
-        f"-i {target_dir}/js_files.txt -o cli > {target_dir}/js_endpoints.txt"
-    )
+    log("[4] JS files")
+    cmd(f"grep '\\.js' {p}/urls.txt | sort -u > {p}/js.txt")
 
-    # Parameters
-    log("[6/7] Discovering parameters (ParamSpider)")
-    run_cmd(
-        f"python3 {TOOLS_DIR}/ParamSpider/paramspider.py "
-        f"-d {domain} -o {target_dir}/parameters.txt"
-    )
+    log("[5] JS endpoints")
+    cmd(f"python3 {TOOLS}/LinkFinder/linkfinder.py -i {p}/js.txt -o cli > {p}/js_endpoints.txt")
 
-    # Tech stack
-    log("[7/7] Detecting technology stack (WhatWeb)")
-    run_cmd(
-        f"whatweb {domain} > {target_dir}/tech.txt"
-    )
+    log("[6] Parameters")
+    cmd(f"python3 {TOOLS}/ParamSpider/paramspider.py -d {domain} -o {p}/params.txt")
 
-    log("=" * 50)
-    log("[✓] FULL recon completed successfully")
-    log(f"[✓] Results saved in: {target_dir}")
+    log("[7] API recon")
+    cmd(f"grep -Ei '/api|/v1|/v2|graphql|swagger|openapi' {p}/urls.txt > {p}/api_endpoints.txt")
+    cmd(f"grep -Ei '/api|/v1|/v2|graphql' {p}/js_endpoints.txt >> {p}/api_endpoints.txt")
+    cmd(f"sort -u {p}/api_endpoints.txt -o {p}/api_endpoints.txt")
 
-# ================== UI ==================
+    log("[8] Tech stack")
+    cmd(f"whatweb {domain} > {p}/tech.txt")
+
+    log("[✓] DEEP recon completed")
+
+# ---------------- UI ----------------
 app = ctk.CTk()
 app.title(APP_NAME)
-app.geometry("1000x650")
+app.geometry("1050x700")
 
-title_label = ctk.CTkLabel(
-    app, text=APP_NAME, font=("Hack", 28, "bold")
-)
-title_label.pack(pady=(15, 5))
+ctk.CTkLabel(app, text=APP_NAME, font=("Hack",28,"bold")).pack(pady=10)
+ctk.CTkLabel(app, text=AUTHOR).pack()
 
-author_label = ctk.CTkLabel(app, text=AUTHOR)
-author_label.pack(pady=(0, 15))
+entry = ctk.CTkEntry(app, width=420, placeholder_text="example.com")
+entry.pack(pady=10)
 
-domain_entry = ctk.CTkEntry(
-    app,
-    width=420,
-    placeholder_text="example.com"
-)
-domain_entry.pack(pady=10)
+frame = ctk.CTkFrame(app)
+frame.pack(pady=5)
 
-run_button = ctk.CTkButton(
-    app,
-    text="🚀 RUN FULL RECON",
-    width=250,
-    height=40,
-    command=run_full_recon
-)
-run_button.pack(pady=10)
+ctk.CTkButton(frame, text="⚡ FAST RECON", width=180,
+              command=lambda: run_recon("fast")).pack(side="left", padx=10)
 
-output_box = ctk.CTkTextbox(
-    app,
-    width=920,
-    height=400
-)
-output_box.pack(pady=15)
+ctk.CTkButton(frame, text="🧠 DEEP RECON", width=180,
+              command=lambda: run_recon("deep")).pack(side="left", padx=10)
+
+output = ctk.CTkTextbox(app, width=980, height=420)
+output.pack(pady=15)
 
 app.mainloop()

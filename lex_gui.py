@@ -1,97 +1,75 @@
-import tkinter as tk
-from tkinter import messagebox
-import subprocess
-import os
+import customtkinter as ctk
+import subprocess, os
 
-BANNER = r"""
-██╗     ███████╗██╗  ██╗
-██║     ██╔════╝╚██╗██╔╝
-██║     █████╗   ╚███╔╝ 
-██║     ██╔══╝   ██╔██╗ 
-███████╗███████╗██╔╝ ██╗
-╚══════╝╚══════╝╚═╝  ╚═╝
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("green")
 
-        LΞX Recon Tool
-   Made by Omar Abdelsalam
-"""
+APP_NAME = "LΞX Recon v2"
+AUTHOR = "Made by Omar Abdelsalam"
 
-def run(cmd, stdin=None):
-    return subprocess.Popen(
-        cmd,
-        stdin=stdin,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True
-    )
+def run(cmd):
+    return subprocess.getoutput(cmd)
 
-def ensure_dir(domain):
+def ensure(domain):
     path = f"results/{domain}"
     os.makedirs(path, exist_ok=True)
     return path
 
-def status(msg):
-    status_label.config(text=msg)
-    root.update()
+def log(msg):
+    output.insert("end", msg + "\n")
+    output.see("end")
+    app.update()
 
-def show(text):
-    output_box.delete(1.0, tk.END)
-    output_box.insert(tk.END, text)
-
-def subdomain_recon():
-    domain = domain_entry.get().strip()
+def recon_all():
+    domain = entry.get().strip()
     if not domain:
-        messagebox.showerror("Error", "Enter a domain")
+        log("[!] Enter a domain")
         return
 
-    path = ensure_dir(domain)
-    outfile = f"{path}/live_subdomains.txt"
+    path = ensure(domain)
 
-    status("Running subfinder + amass...")
-    sub = run(["subfinder", "-d", domain, "-silent"])
-    amass = run(["amass", "enum", "-passive", "-d", domain], stdin=sub.stdout)
+    log("[+] Finding subdomains")
+    run(f"subfinder -d {domain} -silent | amass enum -passive -d {domain} > {path}/subs.txt")
 
-    status("Checking live hosts...")
-    httpx = run(["httpx", "-silent"], stdin=amass.stdout)
-    result = httpx.communicate()[0]
+    log("[+] Checking live hosts")
+    run(f"cat {path}/subs.txt | httpx -silent > {path}/live.txt")
 
-    with open(outfile, "w") as f:
-        f.write(result)
+    log("[+] Collecting URLs")
+    run(f"cat {path}/live.txt | gau > {path}/urls.txt")
+    run(f"cat {path}/live.txt | waybackurls >> {path}/urls.txt")
 
-    show(result)
-    status(f"Saved → {outfile}")
+    log("[+] Extracting JS files")
+    run(f"grep '.js' {path}/urls.txt | sort -u > {path}/js.txt")
 
-# ---------- UI ----------
-root = tk.Tk()
-root.title("LΞX Recon Tool")
-root.geometry("950x650")
+    log("[+] Extracting JS endpoints")
+    run(f"python3 tools/LinkFinder/linkfinder.py -i {path}/js.txt -o cli > {path}/js_endpoints.txt")
 
-banner_box = tk.Text(root, height=10, bg="black", fg="green", font=("Courier", 10))
-banner_box.pack(fill=tk.X)
-banner_box.insert(tk.END, BANNER)
-banner_box.config(state=tk.DISABLED)
+    log("[+] Finding parameters")
+    run(f"python3 tools/ParamSpider/paramspider.py -d {domain} -o {path}/params.txt")
 
-tk.Label(root, text="Target Domain", font=("Arial", 14)).pack(pady=5)
-domain_entry = tk.Entry(root, width=40, font=("Arial", 14))
-domain_entry.pack()
+    log("[+] Detecting tech stack")
+    run(f"whatweb {domain} > {path}/tech.txt")
 
-tk.Button(
-    root,
-    text="Find Subdomains",
-    font=("Arial", 12),
-    width=20,
-    command=subdomain_recon
-).pack(pady=10)
+    log("[✓] Recon completed successfully")
 
-status_label = tk.Label(root, text="Idle", fg="cyan")
-status_label.pack()
+# ---------------- UI ----------------
+app = ctk.CTk()
+app.title(APP_NAME)
+app.geometry("1000x650")
 
-output_box = tk.Text(root, height=25, width=115)
-output_box.pack(pady=10)
+title = ctk.CTkLabel(app, text=APP_NAME, font=("Hack", 28))
+title.pack(pady=10)
 
-tk.Label(
-    root,
-    text="Made by Omar Abdelsalam",
-    fg="gray"
-).pack(side=tk.BOTTOM, pady=5)
+subtitle = ctk.CTkLabel(app, text=AUTHOR)
+subtitle.pack()
 
-root.mainloop()
+entry = ctk.CTkEntry(app, width=400, placeholder_text="example.com")
+entry.pack(pady=15)
+
+btn = ctk.CTkButton(app, text="🚀 RUN FULL RECON", command=recon_all)
+btn.pack(pady=10)
+
+output = ctk.CTkTextbox(app, width=900, height=400)
+output.pack(pady=10)
+
+app.mainloop()

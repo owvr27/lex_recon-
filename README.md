@@ -1,46 +1,78 @@
-
-
         LΞX Recon
    Made by Omar Abdelsalam
 
 # LΞX Recon
 
-LΞX Recon is a **professional reconnaissance automation framework** designed for **real bug bounty hunters and penetration testers**.
+**LΞX Recon** is a **professional web reconnaissance framework** built for **real bug bounty hunters and web penetration testers**.
 
-It focuses on **high-signal attack surface discovery**, not noisy scanning.
+It focuses on **high-signal attack surface discovery** using **modern, proven recon methodologies**, avoiding noisy scans and misleading output.
+
+> Recon should be **signal, not noise**.
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- Subdomain enumeration (subfinder + amass)
-- Live host detection (httpx)
-- URL collection (gau + wayback)
-- JavaScript endpoint extraction
+- **Best-practice subdomain discovery (2025)**
+  - Passive: `subfinder` + `assetfinder`
+  - Optional active brute-force (opt-in): `ffuf`
+- **Accurate live host detection**
+  - Clean input filtering
+  - HTTPS + redirect-aware probing with `httpx`
+- URL collection from archives
+  - `gau` + `waybackurls`
+- JavaScript analysis
+  - Hidden endpoint extraction
+  - API route discovery
 - Parameter discovery
-- **API recon (REST, GraphQL, Swagger)**
-- Tech stack fingerprinting
-- Modern dark GUI + powerful CLI
+  - GET / POST parameters
+  - IDOR-style candidate detection
+- **API recon**
+  - REST
+  - GraphQL
+  - Swagger / OpenAPI endpoints
+- Modular architecture
+- Powerful **CLI + modern dark GUI**
+- Clean, organized, human-readable output
 
 ---
 
 ## ⚡ Recon Modes
 
-### FAST
-- Subdomains
-- Live hosts
-- URLs
+### ⚡ FAST
+Designed for quick triage.
 
-Best for quick triage.
+Includes:
+- Passive subdomains
+- Cleaned & resolved live hosts
+- Archived URLs
 
-### DEEP
+Use this mode when testing many targets quickly.
+
+---
+
+### 🧠 DEEP
+Designed for active bug hunting.
+
+Includes:
 - FAST recon +
-- JS files & endpoints
-- Parameters
-- API endpoints
-- Tech stack
+- JavaScript file analysis
+- Endpoint extraction
+- Parameter discovery
+- API endpoint mapping
+- Technology fingerprinting
 
-Best for full bug-hunting.
+---
+
+### 🤖 SMART (Recommended)
+Adaptive mode.
+
+LexRecon decides what to run based on early results:
+- JS-heavy apps → deeper JS analysis
+- API-heavy apps → API-focused recon
+- Small surface → optional brute-force
+
+This mode mimics how experienced bug bounty hunters think.
 
 ---
 
@@ -48,40 +80,76 @@ Best for full bug-hunting.
 
 ### GUI
 ```bash
-python3 lex_recon_gui.py
----
+python3 lexrecon_gui.py
 
-###Cli 
-python3 lex_recon_cli.py -d example.com --deep
+CLI
 
+python3 lexrecon_cli.py -d example.com --deep
+
+Other modes:
+
+python3 lexrecon_cli.py -d example.com --fast
+python3 lexrecon_cli.py -d example.com --smart
+
+📁 Output Structure
+
+results/example.com/
+├── subs/
+│   ├── all_subdomains.txt
+│   ├── clean_subdomains.txt
+│   └── live_subdomains.txt
+├── urls/
+├── js/
+├── params/
+└── report/
+
+    Only live_subdomains.txt represents the real attack surface.
 
 🔧 Dependencies
 
-LΞX Recon auto-downloads:
+External tools required (must be in $PATH):
 
-LinkFinder
+    subfinder
 
-ParamSpider
+    assetfinder
 
-External tools required:
+    httpx
 
-subfinder
+    gau
 
-amass
+    waybackurls
 
-httpx
+    ffuf (optional, for brute-force)
 
-gau
+Wordlists:
 
-waybackurls
+wordlists/dns-Jhaddix.txt
 
-whatweb
+Some helper tools are automatically handled by LexRecon when needed.
+🔒 Ethics & Disclaimer
 
-⚠️ Disclaimer
+LexRecon is intended only for authorized security testing.
 
-For authorized security testing only.
-Do not use against systems you do not own or have permission to test.
+    No exploitation
 
+    No scanning by default
+
+    No bypass attempts
+
+    Passive-first, safe-by-design
+
+Do not use LexRecon against systems you do not own or have explicit permission to test.
 👤 Author
 
 Omar Abdelsalam
+Bug Bounty Hunter · Offensive Security Engineer · Tool Developer
+⭐ Final Note
+
+LexRecon does not try to “find bugs”.
+
+It does something more valuable:
+
+    It puts you in the best possible position to find real bugs faster.
+
+
+

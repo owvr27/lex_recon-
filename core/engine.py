@@ -1,32 +1,44 @@
-from modules import subdomains, urls, js, params
+from modules import subdomains
 
 def run(domain, mode, options):
     results = {}
 
-    # FAST
+    # FAST mode
     if mode == "fast":
-        results["subs"] = subdomains.run(domain, passive=True)
-        results["urls"] = urls.run(domain, archive_only=True)
+        results["subs"] = subdomains.run(
+            domain,
+            passive=True,
+            brute=False,
+            live=True
+        )
         return results
 
-    # DEEP
+    # DEEP mode
     if mode == "deep":
-        results["subs"] = subdomains.run(domain, passive=True, live=True)
-        results["urls"] = urls.run(domain)
-        results["js"] = js.run(domain)
-        results["params"] = params.run(domain)
+        results["subs"] = subdomains.run(
+            domain,
+            passive=True,
+            brute=True,
+            live=True
+        )
         return results
 
-    # SMART
+    # SMART mode
     if mode == "smart":
-        results["subs"] = subdomains.run(domain, passive=True)
-        results["urls"] = urls.run(domain, archive_only=True)
+        results["subs"] = subdomains.run(
+            domain,
+            passive=True,
+            brute=False,
+            live=True
+        )
 
-        # decision logic
-        if urls.has_js(domain):
-            results["js"] = js.run(domain)
-
-        if urls.has_params(domain):
-            results["params"] = params.run(domain)
+        # If few subs found, escalate to brute-force
+        if os.path.getsize(results["subs"]["all"]) < 200:
+            results["subs"] = subdomains.run(
+                domain,
+                passive=True,
+                brute=True,
+                live=True
+            )
 
         return results

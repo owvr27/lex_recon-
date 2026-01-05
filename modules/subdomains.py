@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+
 def run(
     domain,
     passive=True,
@@ -9,25 +10,30 @@ def run(
     wordlist="wordlists/dns-Jhaddix.txt"
 ):
     """
-    Best-practice subdomain recon:
+    Best-practice subdomain reconnaissance (2025):
+
     - Passive: subfinder + assetfinder
-    - Optional brute-force: ffuf
-    - Resolve live hosts: httpx
+    - Optional brute-force: ffuf (opt-in)
+    - Cleaning: remove wildcards, emails, junk
+    - Live resolution: httpx (HTTPS + redirects)
+
+    Outputs only REAL attack surface.
     """
 
     outdir = f"results/{domain}/subs"
     os.makedirs(outdir, exist_ok=True)
 
     all_subs = f"{outdir}/all_subdomains.txt"
+    clean_subs = f"{outdir}/clean_subdomains.txt"
     brute_subs = f"{outdir}/brute_subdomains.txt"
     live_subs = f"{outdir}/live_subdomains.txt"
 
-    # ----------------------------
-    # 1) Passive enumeration
-    # ----------------------------
+    # -------------------------------------------------
+    # 1) Passive subdomain enumeration (BEST PRACTICE)
+    # -------------------------------------------------
     if passive:
         cmd = (
-            f"subfinder -d {domain} -silent && "
+            f"subfinder -d {domain} -silent; "
             f"assetfinder --subs-only {domain}"
         )
 
@@ -37,9 +43,9 @@ def run(
             stderr=subprocess.DEVNULL
         )
 
-    # ----------------------------
-    # 2) Active brute-force (OPT-IN)
-    # ----------------------------
+    # -------------------------------------------------
+    # 2) Active brute-force (OPTIONAL, OPT-IN)
+    # -------------------------------------------------
     if brute:
         ffuf_cmd = (
             f"ffuf -u https://FUZZ.{domain} "
@@ -55,28 +61,42 @@ def run(
             stderr=subprocess.DEVNULL
         )
 
-        # Extract valid subs from ffuf output
+        # Extract discovered subdomains from ffuf output
         subprocess.call(
             f"cut -d',' -f1 {brute_subs} | sort -u >> {all_subs}",
-            shell=True
+            shell=True,
+            stderr=subprocess.DEVNULL
         )
 
         subprocess.call(
             f"sort -u {all_subs} -o {all_subs}",
-            shell=True
+            shell=True,
+            stderr=subprocess.DEVNULL
         )
 
-    # ----------------------------
-    # 3) Resolve live hosts
-    # ----------------------------
+    # -------------------------------------------------
+    # 3) Clean subdomains BEFORE resolving (CRITICAL)
+    # -------------------------------------------------
+    subprocess.call(
+        f"grep -E '^[a-zA-Z0-9.-]+\\.[a-zA-Z]{{2,}}$' {all_subs} | "
+        f"grep -v '@' | grep -v '\\*' | sort -u > {clean_subs}",
+        shell=True,
+        stderr=subprocess.DEVNULL
+    )
+
+    # -------------------------------------------------
+    # 4) Resolve LIVE web hosts (PROPERLY)
+    # -------------------------------------------------
     if live:
         subprocess.call(
-            f"cat {all_subs} | httpx -silent > {live_subs}",
+            f"cat {clean_subs} | "
+            f"httpx -silent -https -follow-redirects > {live_subs}",
             shell=True,
             stderr=subprocess.DEVNULL
         )
 
     return {
         "all": all_subs,
+        "clean": clean_subs,
         "live": live_subs
     }

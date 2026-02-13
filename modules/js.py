@@ -1,20 +1,25 @@
-import os, subprocess
+import os
+from core.exec_utils import run_cmd
 
-def run(domain):
-    outdir = f"results/{domain}/js"
+def run(domain, out_base="results", run_id=None, timeout_s=900):
+    run_tag = run_id or "default"
+    outdir = f"{out_base}/{domain}/{run_tag}/js"
     os.makedirs(outdir, exist_ok=True)
 
     js_files = f"{outdir}/js_files.txt"
     endpoints = f"{outdir}/js_endpoints.txt"
 
-    subprocess.call(
-        f"grep '.js' results/{domain}/urls/urls.txt | sort -u > {js_files}",
-        shell=True
-    )
+    urls_file = f"{out_base}/{domain}/{run_tag}/urls/urls.txt"
+    if os.path.exists(urls_file):
+        run_cmd(f"grep -i '\\.js\b' {urls_file} | sort -u > {js_files}", shell=True, timeout_s=timeout_s, quiet=True)
+    else:
+        open(js_files, "w").close()
 
-    subprocess.call(
-        f"python3 tools/LinkFinder/linkfinder.py -i {js_files} -o cli > {endpoints}",
-        shell=True
-    )
+    # If LinkFinder is present, use it. Otherwise leave endpoints empty.
+    linkfinder = "tools/LinkFinder/linkfinder.py"
+    if os.path.exists(linkfinder):
+        run_cmd(f"python3 {linkfinder} -i {js_files} -o cli > {endpoints}", shell=True, timeout_s=timeout_s, quiet=True)
+    else:
+        open(endpoints, "w").close()
 
-    return endpoints
+    return {"all": endpoints, "js_files": js_files, "outdir": outdir}

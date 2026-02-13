@@ -1,39 +1,41 @@
-from modules import subdomains
+import os
+import json
+from datetime import datetime
+from modules import subdomains, urls, js, params
+from core.utils import ensure_dir, count_lines
+from core.report import build_report
 
-def run(domain, mode, options):
+BASE_RESULTS = "results"
+
+
+def run(domain, mode):
+    print(f"\n[+] Target: {domain}")
+    print(f"[+] Mode: {mode}")
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    target_dir = os.path.join(BASE_RESULTS, f"{domain}_{timestamp}")
+    ensure_dir(target_dir)
+
     results = {}
 
-    # FAST mode
-    if mode == "fast":
-        results["subs"] = subdomains.run(
-            domain,
-            passive=True,
-            brute=False,
-            live=True
-        )
-        return results
-
-    # DEEP mode
+    # --- SUBDOMAIN PHASE ---
+    brute = False
     if mode == "deep":
-        results["subs"] = subdomains.run(
-            domain,
-            passive=True,
-            brute=True,
-            live=True
-        )
-        return results
+        brute = True
 
-    # SMART mode
+    print("[*] Running subdomain discovery...")
+    results["subs"] = subdomains.run(
+        domain,
+        passive=True,
+        brute=brute,
+        live=True
+    )
+
+    # SMART escalation
     if mode == "smart":
-        results["subs"] = subdomains.run(
-            domain,
-            passive=True,
-            brute=False,
-            live=True
-        )
-
-        # If few subs found, escalate to brute-force
-        if os.path.getsize(results["subs"]["all"]) < 200:
+        sub_count = count_lines(results["subs"]["all"])
+        if sub_count < 50:
+            print("[!] Low subdomain count detected — escalating to brute mode")
             results["subs"] = subdomains.run(
                 domain,
                 passive=True,
@@ -41,4 +43,24 @@ def run(domain, mode, options):
                 live=True
             )
 
-        return results
+    # --- URL COLLECTION ---
+    print("[*] Collecting URLs...")
+    results["urls"] = urls.run(domain)
+
+    # --- JS ANALYSIS ---
+    print("[*] Extracting JS endpoints...")
+    results["js"] = js.run(domain)
+
+    # --- PARAM DISCOVERY ---
+    print("[*] Discovering parameters...")
+    results["params"] = params.run(domain)
+
+    # --- REPORTING ---
+    print("[*] Building final report...")
+    report = build_report(domain, results, target_dir)
+
+    with open(os.path.join(target_dir, "report.json"), "w") as f:
+        json.dump(report, f, indent=4)
+
+    print(f"\n[✓] Recon complete.")
+    print(f"[✓] Results saved to: {target_dir}")

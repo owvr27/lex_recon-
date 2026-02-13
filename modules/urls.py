@@ -1,26 +1,21 @@
-import os, subprocess
+import os
+from core.exec_utils import run_cmd
 
-def run(domain, archive_only=False):
-    outdir = f"results/{domain}/urls"
+def run(domain, archive_only=False, out_base="results", run_id=None, timeout_s=900):
+    run_tag = run_id or "default"
+    outdir = f"{out_base}/{domain}/{run_tag}/urls"
     os.makedirs(outdir, exist_ok=True)
 
     urls = f"{outdir}/urls.txt"
-    subprocess.call(f"gau {domain} > {urls}", shell=True)
-    subprocess.call(f"waybackurls {domain} >> {urls}", shell=True)
+    # Archive sources
+    run_cmd(f"gau {domain} > {urls}", shell=True, timeout_s=timeout_s, quiet=True)
+    run_cmd(f"waybackurls {domain} >> {urls}", shell=True, timeout_s=timeout_s, quiet=True)
 
+    # Optional crawler if installed (katana). Keep safe depth.
     if not archive_only:
-        subprocess.call(f"katana -u {domain} -d 3 >> {urls}", shell=True)
+        run_cmd(f"katana -u https://{domain} -d 2 -silent >> {urls}", shell=True, timeout_s=timeout_s, quiet=True)
 
-    subprocess.call(f"sort -u {urls} -o {urls}", shell=True)
-    subprocess.call(
-        f"grep '?' {urls} > {outdir}/urls_with_params.txt",
-        shell=True
-    )
+    run_cmd(f"sort -u {urls} -o {urls}", shell=True, timeout_s=timeout_s, quiet=True)
+    run_cmd(f"grep '\\?' {urls} > {outdir}/urls_with_params.txt", shell=True, timeout_s=timeout_s, quiet=True)
 
-    return urls
-
-def has_js(domain):
-    return True
-
-def has_params(domain):
-    return True
+    return {"all": urls, "with_params": f"{outdir}/urls_with_params.txt", "outdir": outdir}
